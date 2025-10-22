@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 
 
 #Load the dataset
-dataset_no = 3
+dataset_no = 4
 dataset_name = 'synth'+ str(dataset_no)
 
 path = 'C:/Users/mrusn/PycharmProjects/02452_Machine_Learning/Lecture_2/data/synth/'

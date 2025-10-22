@@ -1,0 +1,32 @@
+feature,coefficient,poly_degree,lambda
+poly_scale_cont__cylinders,-0.5787,2,0.1000
+poly_scale_cont__displacement,-2.0030,2,0.1000
+poly_scale_cont__horsepower,4.2589,2,0.1000
+poly_scale_cont__weight,-2.9269,2,0.1000
+poly_scale_cont__acceleration,-9.3199,2,0.1000
+poly_scale_cont__model_year,-9.2143,2,0.1000
+poly_scale_cont__cylinders^2,-4.1198,2,0.1000
+poly_scale_cont__cylinders displacement,-1.1602,2,0.1000
+poly_scale_cont__cylinders horsepower,5.5870,2,0.1000
+poly_scale_cont__cylinders weight,5.0445,2,0.1000
+poly_scale_cont__cylinders acceleration,3.5315,2,0.1000
+poly_scale_cont__cylinders model_year,-3.5387,2,0.1000
+poly_scale_cont__displacement^2,-2.6128,2,0.1000
+poly_scale_cont__displacement horsepower,0.0265,2,0.1000
+poly_scale_cont__displacement weight,8.1780,2,0.1000
+poly_scale_cont__displacement acceleration,-3.6015,2,0.1000
+poly_scale_cont__displacement model_year,3.7660,2,0.1000
+poly_scale_cont__horsepower^2,0.3974,2,0.1000
+poly_scale_cont__horsepower weight,-5.0827,2,0.1000
+poly_scale_cont__horsepower acceleration,-0.1482,2,0.1000
+poly_scale_cont__horsepower model_year,-6.0713,2,0.1000
+poly_scale_cont__weight^2,3.2274,2,0.1000
+poly_scale_cont__weight acceleration,-0.6786,2,0.1000
+poly_scale_cont__weight model_year,-6.5672,2,0.1000
+poly_scale_cont__acceleration^2,2.2071,2,0.1000
+poly_scale_cont__acceleration model_year,7.2066,2,0.1000
+poly_scale_cont__model_year^2,12.5057,2,0.1000
+onehot_passthrough__origin_europe,0.6785,2,0.1000
+onehot_passthrough__origin_japan,0.2334,2,0.1000
+onehot_passthrough__origin_usa,-0.9119,2,0.1000
+intercept,23.9194,2,0.1000
