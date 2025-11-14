@@ -6,19 +6,104 @@ from sklearn.metrics import mean_squared_error
 from sklearn.pipeline import make_pipeline
 from sklearn.dummy import DummyRegressor
 from sklearn.linear_model import Ridge
+from dataclasses import dataclass
 from sklearn.base import clone
-from typing import Tuple
+from typing import Any
 import numpy as np
 
 
-def make_baseline_preprocessor(continuous_cols: list, onehot_cols: list):
+@dataclass
+class ModelComparisonResult:
+    """
+    Container for results produced by model_comparison.
+
+    Attributes
+    ----------
+    baseline_final_dict : dict[int, float]
+        Mapping from outer CV fold index to final baseline MSE on the outer test split.
+    ridge_final_dict : dict[int, float]
+        Mapping from outer CV fold index to final Ridge MSE on the outer test split.
+    ann_final_dict : dict[int, float]
+        Mapping from outer CV fold index to final ANN MSE on the outer test split.
+    ridge_best_alpha_dict : dict[int, Any]
+        Mapping from outer CV fold index to the best Ridge hyperparameter (alpha) found in the inner CV.
+    ann_best_layer_dict : dict[int, Any]
+        Mapping from outer CV fold index to the best ANN hidden-layer-size tuple found in the inner CV.
+    y_true : numpy.ndarray
+        Concatenated ground-truth target values from all outer test splits.
+    y_preds : dict[str, numpy.ndarray]
+        Mapping model-name -> concatenated predictions across outer test splits (keys: 'Ridge', 'ANN', 'Baseline').
+    """
+    baseline_final_dict: dict[int, float]
+    ridge_final_dict: dict[int, float]
+    ann_final_dict: dict[int, float]
+    ridge_best_alpha_dict: dict[int, Any]
+    ann_best_layer_dict: dict[int, Any]
+    y_true: np.ndarray
+    y_preds: dict[str, np.ndarray]
+
+
+def make_baseline_preprocessor(
+        *,
+        continuous_cols: list,
+        onehot_cols: list
+        ) -> ColumnTransformer:
+    """
+    Create a baseline preprocessing pipeline for tabular data.
+
+    This transformer standardizes continuous features using
+    `StandardScaler` and passes categorical one-hot encoded
+    features through without modification.
+
+    Parameters
+    ----------
+    continuous_cols : list
+        List of column names corresponding to continuous (numeric) features.
+    onehot_cols : list
+        List of column names corresponding to categorical features
+        that are already one-hot encoded.
+
+    Returns
+    -------
+    ColumnTransformer
+        A scikit-learn `ColumnTransformer` that applies scaling
+        to continuous features and passthrough to one-hot features.
+    """
     return ColumnTransformer([
         ('scale_cont', StandardScaler(), continuous_cols),
         ('onehot_passthrough', 'passthrough', onehot_cols)
     ])
 
 
-def make_ridge_preprocessor_with_degree(continuous_cols: list, onehot_cols: list, polynomial_degree: int):
+def make_ridge_preprocessor_with_degree(
+        continuous_cols: list,
+        onehot_cols: list,
+        polynomial_degree: int
+        ) -> ColumnTransformer:
+    """
+    Create a preprocessing pipeline for ridge regression with polynomial features.
+
+    This transformer expands continuous features into polynomial terms
+    of a specified degree, scales them with `StandardScaler`, and passes
+    one-hot encoded categorical features through unchanged.
+
+    Parameters
+    ----------
+    continuous_cols : list
+        List of column names corresponding to continuous (numeric) features.
+    onehot_cols : list
+        List of column names corresponding to categorical features
+        that are already one-hot encoded.
+    polynomial_degree : int
+        Degree of polynomial expansion to apply to continuous features.
+
+    Returns
+    -------
+    ColumnTransformer
+        A scikit-learn `ColumnTransformer` that applies polynomial
+        feature expansion and scaling to continuous features, and
+        passthrough to one-hot features.
+    """
     return ColumnTransformer([
         ('poly_scale_cont',
          make_pipeline(PolynomialFeatures(degree=polynomial_degree, include_bias=False), StandardScaler()),
@@ -27,7 +112,33 @@ def make_ridge_preprocessor_with_degree(continuous_cols: list, onehot_cols: list
     ])
 
 
-def make_ann_preprocessor(continuous_cols: list, onehot_cols: list):
+def make_ann_preprocessor(
+        *,
+        continuous_cols: list,
+        onehot_cols: list
+        ) -> ColumnTransformer:
+    """
+    Create a preprocessing pipeline for artificial neural networks (ANNs).
+
+    This transformer standardizes continuous features using
+    `StandardScaler` and passes one-hot encoded categorical
+    features through unchanged. This setup is commonly used
+    before feeding data into neural networks.
+
+    Parameters
+    ----------
+    continuous_cols : list
+        List of column names corresponding to continuous (numeric) features.
+    onehot_cols : list
+        List of column names corresponding to categorical features
+        that are already one-hot encoded.
+
+    Returns
+    -------
+    ColumnTransformer
+        A scikit-learn `ColumnTransformer` that applies scaling
+        to continuous features and passthrough to one-hot features.
+    """
     return ColumnTransformer([
         ('scale_cont', StandardScaler(), continuous_cols),
         ('onehot_passthrough', 'passthrough', onehot_cols)
@@ -35,19 +146,59 @@ def make_ann_preprocessor(continuous_cols: list, onehot_cols: list):
 
 
 def ann_hyperparameter_tuning_gridsearch(
-        X, y,
-        continuous_cols, onehot_cols,
+        X, y, /, *,
+        continuous_cols: list,
+        onehot_cols: list,
         random_state: int = 42,
         cv_splits: int = 10,
         n_jobs: int = -1
     ):
-    '''
-    Returns fitted GridSearchCV and prints best params and MSE.
-    '''
+    """
+    Perform hyperparameter tuning for an Artificial Neural Network (ANN) regressor using GridSearchCV.
 
-    preprocessor = make_ann_preprocessor(continuous_cols, onehot_cols)
+    This function builds a preprocessing pipeline that standardizes continuous features,
+    passes one-hot encoded categorical features through unchanged, and fits an
+    `MLPRegressor` wrapped in a `TransformedTargetRegressor` (with target scaling).
+    A grid search is performed over key ANN hyperparameters to minimize mean squared error (MSE).
+
+    Parameters
+    ----------
+    X : array-like of shape (n_samples, n_features)
+        Feature matrix containing both continuous and one-hot encoded categorical features.
+    y : array-like of shape (n_samples,)
+        Target values for regression.
+    continuous_cols : list
+        List of column names corresponding to continuous (numeric) features.
+    onehot_cols : list
+        List of column names corresponding to categorical features that are already one-hot encoded.
+    random_state : int, default=42
+        Random seed for reproducibility in cross-validation and ANN initialization.
+    cv_splits : int, default=10
+        Number of cross-validation folds for GridSearchCV.
+    n_jobs : int, default=-1
+        Number of parallel jobs to run for GridSearchCV.
+        `-1` means using all available processors.
+
+    Returns
+    -------
+    GridSearchCV
+        A fitted `GridSearchCV` object containing the best estimator,
+        cross-validation results, and best hyperparameters.
+
+    Side Effects
+    ------------
+    Prints the best hyperparameters and the corresponding cross-validated MSE.
+
+    Notes
+    -----
+    - The ANN is trained with the Adam optimizer, early stopping, and a maximum of 2000 iterations.
+    - The parameter grid includes variations in hidden layer sizes, activation functions,
+      L2 regularization strength (`alpha`), learning rate, and batch size.
+    - The target variable is scaled using `StandardScaler` inside `TransformedTargetRegressor`.
+    """
+    preprocessor = make_ann_preprocessor(continuous_cols=continuous_cols, onehot_cols=onehot_cols)
     ann = MLPRegressor(random_state=random_state,
-                       solver = 'adam',
+                       solver='adam',
                        max_iter=2000,
                        early_stopping=True,
                        tol=1e-5,
@@ -88,18 +239,80 @@ def ann_hyperparameter_tuning_gridsearch(
     return best_parameters
 
 
-def model_comaparison(
-        X, y, KFold_value_outer: int, KFold_value_inner: int, random_state: int,
+def model_comparison(
+        X, y, /, *,
+        KFold_value_outer: int, KFold_value_inner: int, random_state: int,
         continuous_cols: list, onehot_cols: list, polynomial_degree: int,
-        ridge_alpha: list, ridge_solver: str, ann_hidden_layer_sizes:list
-        ) -> Tuple[dict, dict, dict, dict, dict]:
-    '''
-    Returns three dictionaries with MSE for Baseline model, Linear Regression model, and ANN model.
-    Also returns a dictionary with lists of the best alpha values for LR and
-    hidden layers number for ANN for each outer fold.
-    '''
+        ridge_alpha: list, ridge_solver: str, ann_hidden_layer_sizes: list[tuple[int]]
+        ) -> ModelComparisonResult:
+    """
+    Perform nested cross-validated model comparison for a baseline regressor, Ridge, and an ANN.
 
-    # Return dictionaries
+    The function runs an outer K-fold loop for performance estimation. For each outer fold it
+    runs an inner K-fold search over pairs of hyperparameters (ridge_alpha, ann_hidden_layer_sizes)
+    to select the best Ridge alpha and ANN hidden-layer size. Final models (baseline, Ridge with
+    the best alpha, ANN with best hidden-layer-size) are trained on the outer training split and
+    evaluated on the outer test split. Results and concatenated predictions are returned in a
+    ModelComparisonResult.
+
+    Parameters
+    ----------
+    X : pandas.DataFrame
+        Feature dataframe.
+    y : pandas.Series or array-like
+        Target vector.
+    KFold_value_outer : int
+        Number of splits for outer cross-validation.
+    KFold_value_inner : int
+        Number of splits for inner cross-validation (hyperparameter search).
+    random_state : int
+        Random seed used for KFold shuffling and model stochasticity.
+    continuous_cols : list[str]
+        Names of continuous columns to be scaled (and possibly used with PolynomialFeatures).
+    onehot_cols : list[str]
+        Names of categorical columns to pass through or one-hot encode.
+    polynomial_degree : int
+        Degree of polynomial features used in the Ridge preprocessing pipeline.
+    ridge_alpha : list[float]
+        List of Ridge alpha values to evaluate in the inner loop. Must have same length as ann_hidden_layer_sizes.
+    ridge_solver : str
+        Solver name passed to sklearn.linear_model.Ridge.
+    ann_hidden_layer_sizes : list[tuple[int]]
+        List of hidden-layer-size tuples for MLPRegressor to evaluate in the inner loop.
+        Must have same length as ridge_alpha; zipped one-to-one for inner-loop evaluations.
+
+    Returns
+    -------
+    ModelComparisonResult
+        Dataclass containing per-fold final metrics, best hyperparameters per outer fold,
+        concatenated ground-truth values, and concatenated predictions for each model.
+
+    Raises
+    ------
+    ValueError
+        If len(ridge_alpha) != len(ann_hidden_layer_sizes).
+
+    Notes
+    -----
+    - The function currently prints progress messages for each outer fold; consider replacing
+      prints with logging for production use.
+    - The returned y_true and y_preds arrays are formed by concatenating the outer test splits
+      in the order of the outer KFold iteration.
+    - The baseline model uses DummyRegressor(strategy='mean'); modify if a different baseline is desired.
+    - Hyperparameter lists (ridge_alpha and ann_hidden_layer_sizes) are zipped and therefore must be
+      provided in corresponding order if you intend to test specific alpha/architecture pairs.
+    """
+    # Raise exception when ridge_alpha and ann_hidden_layer_sizes are not the same length
+    if len(ridge_alpha) != len(ann_hidden_layer_sizes):
+        raise ValueError(f'Length of ridge_alpha must equal to length of ann_hidden_layer_sizes')
+    else:
+        pass
+
+    # Returns for Statistical comparison
+    y_true = []
+    y_preds = {'Ridge': [], 'ANN': [], 'Baseline': []}
+
+    # Return dictionaries for model comparison
     baseline_final_dict, ridge_final_dict, ann_final_dict, ridge_best_alpha_dict, ann_best_layer_dict = {}, {}, {}, {}, {}
 
     CV_KFold_outer = KFold(n_splits=KFold_value_outer, shuffle=True, random_state=random_state)
@@ -115,7 +328,7 @@ def model_comaparison(
 
         # Preprocessing pipelines
         preprocessing_ridge = make_ridge_preprocessor_with_degree(continuous_cols, onehot_cols, polynomial_degree)
-        preprocessing_ann = make_ann_preprocessor(continuous_cols, onehot_cols)
+        preprocessing_ann = make_ann_preprocessor(continuous_cols=continuous_cols, onehot_cols=onehot_cols)
 
         # Looping through the parameters
         for a, h in zip(ridge_alpha, ann_hidden_layer_sizes):
@@ -142,18 +355,18 @@ def model_comaparison(
                 preprocessing_ann_clone = clone(preprocessing_ann)
                 ann_regressor = TransformedTargetRegressor(
                                                         regressor=MLPRegressor(
-                                                        hidden_layer_sizes=h,
-                                                        activation='relu',
-                                                        solver='adam',
-                                                        alpha=0.001,
-                                                        learning_rate_init=0.001,
-                                                        max_iter=2000,
-                                                        batch_size=32,
-                                                        early_stopping=True,
-                                                        tol=1e-5,
-                                                        n_iter_no_change=20,
-                                                        random_state=random_state
-                                                        ),
+                                                            hidden_layer_sizes=h,
+                                                            activation='relu',
+                                                            solver='adam',
+                                                            alpha=0.001,
+                                                            learning_rate_init=0.001,
+                                                            max_iter=2000,
+                                                            batch_size=32,
+                                                            early_stopping=True,
+                                                            tol=1e-5,
+                                                            n_iter_no_change=20,
+                                                            random_state=random_state
+                                                            ),
                                                         transformer=StandardScaler()
                                                         )
 
@@ -178,7 +391,7 @@ def model_comaparison(
         ann_best_layer_dict[count_outer] = best_ann_layer
 
         # BASELINE: train on outer loop's X_train/y_train split
-        baseline_preprocessing = make_baseline_preprocessor(continuous_cols, onehot_cols)
+        baseline_preprocessing = make_baseline_preprocessor(continuous_cols=continuous_cols, onehot_cols=onehot_cols)
         model_baseline = make_pipeline(baseline_preprocessing, DummyRegressor(strategy='mean'))
         model_baseline.fit(X_train_outer, y_train_outer)
         y_pred_baseline = model_baseline.predict(X_test_outer)
@@ -221,4 +434,22 @@ def model_comaparison(
         ridge_final_dict[count_outer] = mean_squared_error(y_test_outer, y_pred_ridge_final)
         ann_final_dict[count_outer] = mean_squared_error(y_test_outer, y_pred_ann_final)
 
-    return baseline_final_dict, ridge_final_dict, ann_final_dict, ridge_best_alpha_dict, ann_best_layer_dict
+        # Create returns for statistical testing
+        y_preds['Ridge'].append(y_pred_ridge_final)
+        y_preds['ANN'].append(y_pred_ann_final)
+        y_preds['Baseline'].append(y_pred_baseline)
+        y_true.append(y_test_outer)
+
+    y_true = np.concatenate(y_true)
+    y_preds = {model: np.concatenate(model_preds) for model, model_preds in y_preds.items()}
+
+    return ModelComparisonResult(
+        baseline_final_dict=baseline_final_dict,
+        ridge_final_dict=ridge_final_dict,
+        ann_final_dict=ann_final_dict,
+        ridge_best_alpha_dict=ridge_best_alpha_dict,
+        ann_best_layer_dict=ann_best_layer_dict,
+        y_true=y_true,
+        y_preds=y_preds
+    )
+
