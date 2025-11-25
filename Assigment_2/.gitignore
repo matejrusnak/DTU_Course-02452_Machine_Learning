@@ -399,6 +399,7 @@ fabric.properties
 
 # csv with processed data
 Assigment_2/Data/Data_processed.csv
+Assigment_2/Data/ridge_coefficients.csv
 
 # Folders created by code to store files
 Assigment_2/Models/
