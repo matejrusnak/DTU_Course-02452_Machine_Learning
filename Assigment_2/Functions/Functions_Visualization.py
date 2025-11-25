@@ -1,11 +1,28 @@
+from sklearn.metrics import r2_score
+from scipy.stats import gaussian_kde
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from scipy.stats import gaussian_kde
-from sklearn.metrics import r2_score
 
 
-def plot_hist(df: pd.DataFrame, columns: list, units: list) -> None:
+def plot_hist(df: pd.DataFrame, *, columns: list[str], units: list[str]) -> None:
+    """
+    Plot histograms and KDE curves for specified DataFrame columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame containing the features to plot.
+    columns : list of str
+        List of column names to visualize.
+    units : list of str
+        List of units corresponding to each feature, used for axis labeling.
+
+    Returns
+    -------
+    None
+        Displays a matplotlib figure with subplots for each feature.
+    """
     fig, axs = plt.subplots(1, 5, figsize=(14, 4))
     fig.suptitle("Distribution of features")
     for ax, col, unit in zip(axs, columns, units):
@@ -25,7 +42,22 @@ def plot_hist(df: pd.DataFrame, columns: list, units: list) -> None:
     plt.show()
 
 
-def plot_alpha_vs_mse(overall_avg_mse: dict) -> None:
+def plot_alpha_vs_mse(overall_avg_mse: dict[int, int]) -> None:
+    """
+    Plot the relationship between log-scaled regularization strength and Mean Squared Error.
+
+    Parameters
+    ----------
+    overall_avg_mse : dict of int to int
+        Dictionary mapping regularization parameter values (alpha) to their corresponding
+        Mean Squared Error from a linear regression model.
+
+    Returns
+    -------
+    None
+        Displays a matplotlib plot showing generalization error vs log10(alpha),
+        with the best-performing alpha highlighted.
+    """
     alphas_sorted = sorted(overall_avg_mse.keys())
     log_alphas = [np.log10(a) for a in alphas_sorted]
     MSEs = [overall_avg_mse[a] for a in alphas_sorted]
@@ -49,9 +81,34 @@ def plot_alpha_vs_mse(overall_avg_mse: dict) -> None:
     plt.show()
 
 
-def plot_actual_vs_pred(y_pred_dict: dict , y_test_outer_dict: dict, gen_errors_dict: dict, polynomial_degree: int)\
-        -> None:
+def plot_actual_vs_pred(
+        y_pred_dict: dict[int, np.ndarray], y_test_outer_dict: dict[int, np.ndarray],
+        gen_errors_dict: dict[int, np.ndarray], /, *, polynomial_degree: int
+        ) -> None:
+    """
+    Visualize predicted vs actual target values across outer folds of cross-validation.
 
+    For each outer fold, this function plots:
+    - A scatter plot of predicted vs actual values.
+    - A fitted polynomial regression line of specified degree.
+    - A reference 45° line representing perfect prediction.
+
+    Parameters
+    ----------
+    y_pred_dict : dict[int, np.ndarray]
+        Dictionary mapping outer fold indices to predicted target values.
+    y_test_outer_dict : dict[int, np.ndarray]
+        Dictionary mapping outer fold indices to actual target values.
+    gen_errors_dict : dict[int, float]
+        Dictionary mapping outer fold indices to generalization error (MSE).
+    polynomial_degree : int
+        Degree of the polynomial used to fit the trend line in each subplot.
+
+    Returns
+    -------
+    None
+        Displays a matplotlib figure with subplots for each outer fold.
+    """
     folds = sorted(gen_errors_dict.keys())
 
     fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(12, 6), sharex=True, sharey=True)
