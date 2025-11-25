@@ -1,8 +1,9 @@
 from Functions.Functions_DataProcessing import *
 from Functions.Functions_Visualization import plot_hist
+import os
 
 
-df = load_dataset(r'C:\Users\mrusn\PycharmProjects\Temp\Data\raw_mpg_dataset.csv')
+df = load_dataset(r'../Assigment_2/Data/raw_mpg_dataset.csv')
 df = column_drop(df, column_name=['Unnamed: 0', 'name'])
 df = replace_with_mean(df)
 
@@ -20,9 +21,10 @@ df = one_hot_encoder(df, label_columns)
 print(df.head())
 print(df.describe())
 
-#transformation_columns = []
-#df = log_transform(df, transformation_columns, base = np.e)
-#df = power(df, columns, exponent = 2)
+# transformation_columns = ['mpg', 'displacement', 'horsepower', 'weight']
+# df = log_transform(df, cols=transformation_columns, base=np.e)
+# df = power(df, columns, exponent = 2)
 
 plot_hist(df, columns=columns, units=units)
-#df.to_csv('Data_processed.csv', index = False)
+target_dir = os.path.join('.', "Data")
+df.to_csv(os.path.join(target_dir, 'Data_processed.csv'), index = False)

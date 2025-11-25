@@ -81,7 +81,6 @@ def one_hot_encoder(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
         are left unchanged.
     """
     dummies = pd.get_dummies(df[columns], dtype=float)
-
     return df.drop(columns=columns).join(dummies)
 
 
