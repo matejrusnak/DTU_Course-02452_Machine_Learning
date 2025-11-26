@@ -5,7 +5,7 @@ import pandas as pd
 
 
 pd.set_option('display.max_columns', None)
-df = load_dataset(r'C:\Users\mrusn\PycharmProjects\Temp\Data\Data_processed.csv')
+df = load_dataset(r'.\Data\Data_processed.csv')
 X = df.drop(columns=['mpg'])
 y = df['mpg']
 
